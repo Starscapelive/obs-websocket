@@ -30,7 +30,7 @@ RpcResponse WSRequestHandler::GetStreamingStatus(const RpcRequest& request) {
 	obs_data_set_bool(data, "streaming", obs_frontend_streaming_active());
 	obs_data_set_bool(data, "recording", obs_frontend_recording_active());
 	obs_data_set_bool(data, "recording-paused", obs_frontend_recording_paused());
-	obs_data_set_bool(data, "virtualcam", obs_frontend_virtualcam_active());
+	//obs_data_set_bool(data, "virtualcam", obs_frontend_virtualcam_active());
 	obs_data_set_bool(data, "preview-only", false);
 
 	if (obs_frontend_streaming_active()) {
@@ -43,10 +43,10 @@ RpcResponse WSRequestHandler::GetStreamingStatus(const RpcRequest& request) {
 		obs_data_set_string(data, "rec-timecode", recordingTimecode.toUtf8().constData());
 	}
 
-	if (obs_frontend_virtualcam_active()) {
-		QString virtualCamTimecode = events->getVirtualCamTimecode();
-		obs_data_set_string(data, "virtualcam-timecode", virtualCamTimecode.toUtf8().constData());
-	}
+	//if (obs_frontend_virtualcam_active()) {
+	//	QString virtualCamTimecode = events->getVirtualCamTimecode();
+	//	obs_data_set_string(data, "virtualcam-timecode", virtualCamTimecode.toUtf8().constData());
+	//}
 
 	return request.success(data);
 }

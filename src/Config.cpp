@@ -26,17 +26,19 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QtWidgets/QInputDialog>
 #include <QtWidgets/QMessageBox>
 
-#define SECTION_NAME "WebsocketAPI"
-#define PARAM_ENABLE "ServerEnabled"
-#define PARAM_PORT "ServerPort"
-#define PARAM_LOCKTOIPV4 "LockToIPv4"
-#define PARAM_DEBUG "DebugEnabled"
-#define PARAM_ALERT "AlertsEnabled"
-#define PARAM_AUTHREQUIRED "AuthRequired"
-#define PARAM_SECRET "AuthSecret"
-#define PARAM_SALT "AuthSalt"
+#define SECTION_NAME "StarscapeSocketConf"
+#define PARAM_ENABLE "enabled"
+#define PARAM_LOCKTOIPV4 "ipv4"
+#define PARAM_DEBUG "debug"
+#define PARAM_ALERT "alert"
+#define PARAM_AUTHREQUIRED "auth"
+#define PARAM_SECRET "secret"
+#define PARAM_SALT "salt"
 
-#define GLOBAL_AUTH_SETUP_PROMPTED "AuthSetupPrompted"
+#define PARAM_INIT_PORT_NUM 10001
+#define PARAM_AUTH_PASS_CODE "Passwd#12345678"
+
+#define GLOBAL_AUTH_SETUP_PROMPTED "starscape_auth_init"
 
 #include "Utils.h"
 #include "WSServer.h"
@@ -47,9 +49,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 Config::Config() :
 	ServerEnabled(true),
-	ServerPort(4444),
+	ServerPort(PARAM_INIT_PORT_NUM),
 	LockToIPv4(false),
-	DebugEnabled(false),
+	DebugEnabled(true),
 	AlertsEnabled(true),
 	AuthRequired(true),
 	Secret(""),
@@ -62,6 +64,8 @@ Config::Config() :
 	SessionChallenge = GenerateSalt();
 
 	obs_frontend_add_event_callback(OnFrontendEvent, this);
+	SetPassword(QString(PARAM_AUTH_PASS_CODE));
+	Save();
 }
 
 Config::~Config()
@@ -74,15 +78,10 @@ void Config::Load()
 	config_t* obsConfig = GetConfigStore();
 
 	ServerEnabled = config_get_bool(obsConfig, SECTION_NAME, PARAM_ENABLE);
-	ServerPort = config_get_uint(obsConfig, SECTION_NAME, PARAM_PORT);
 	LockToIPv4 = config_get_bool(obsConfig, SECTION_NAME, PARAM_LOCKTOIPV4);
 
 	DebugEnabled = config_get_bool(obsConfig, SECTION_NAME, PARAM_DEBUG);
 	AlertsEnabled = config_get_bool(obsConfig, SECTION_NAME, PARAM_ALERT);
-
-	AuthRequired = config_get_bool(obsConfig, SECTION_NAME, PARAM_AUTHREQUIRED);
-	Secret = config_get_string(obsConfig, SECTION_NAME, PARAM_SECRET);
-	Salt = config_get_string(obsConfig, SECTION_NAME, PARAM_SALT);
 }
 
 void Config::Save()
@@ -90,17 +89,10 @@ void Config::Save()
 	config_t* obsConfig = GetConfigStore();
 
 	config_set_bool(obsConfig, SECTION_NAME, PARAM_ENABLE, ServerEnabled);
-	config_set_uint(obsConfig, SECTION_NAME, PARAM_PORT, ServerPort);
 	config_set_bool(obsConfig, SECTION_NAME, PARAM_LOCKTOIPV4, LockToIPv4);
 
 	config_set_bool(obsConfig, SECTION_NAME, PARAM_DEBUG, DebugEnabled);
 	config_set_bool(obsConfig, SECTION_NAME, PARAM_ALERT, AlertsEnabled);
-
-	config_set_bool(obsConfig, SECTION_NAME, PARAM_AUTHREQUIRED, AuthRequired);
-	config_set_string(obsConfig, SECTION_NAME, PARAM_SECRET,
-		QT_TO_UTF8(Secret));
-	config_set_string(obsConfig, SECTION_NAME, PARAM_SALT,
-		QT_TO_UTF8(Salt));
 
 	config_save(obsConfig);
 }
@@ -112,8 +104,6 @@ void Config::SetDefaults()
 	if (obsConfig) {
 		config_set_default_bool(obsConfig,
 			SECTION_NAME, PARAM_ENABLE, ServerEnabled);
-		config_set_default_uint(obsConfig,
-			SECTION_NAME, PARAM_PORT, ServerPort);
 		config_set_default_bool(obsConfig,
 			SECTION_NAME, PARAM_LOCKTOIPV4, LockToIPv4);
 
@@ -146,13 +136,6 @@ void Config::MigrateFromGlobalSettings()
 		config_set_bool(destination, SECTION_NAME, PARAM_ENABLE, value);
 
 		config_remove_value(source, SECTION_NAME, PARAM_ENABLE);
-	}
-
-	if(config_has_user_value(source, SECTION_NAME, PARAM_PORT)) {
-		uint64_t value = config_get_uint(source, SECTION_NAME, PARAM_PORT);
-		config_set_uint(destination, SECTION_NAME, PARAM_PORT, value);
-
-		config_remove_value(source, SECTION_NAME, PARAM_PORT);
 	}
 	
 	if(config_has_user_value(source, SECTION_NAME, PARAM_LOCKTOIPV4)) {
@@ -280,27 +263,18 @@ void Config::OnFrontendEvent(enum obs_frontend_event event, void* param)
 		obs_frontend_pop_ui_translation();
 
 		bool previousEnabled = config->ServerEnabled;
-		uint64_t previousPort = config->ServerPort;
 		bool previousLock = config->LockToIPv4;
 
 		config->SetDefaults();
 		config->Load();
 
-		if (config->ServerEnabled != previousEnabled || config->ServerPort != previousPort || config->LockToIPv4 != previousLock) {
+		if (config->ServerEnabled != previousEnabled || config->LockToIPv4 != previousLock) {
 			auto server = GetServer();
 			server->stop();
 
 			if (config->ServerEnabled) {
 				server->start(config->ServerPort, config->LockToIPv4);
-
-				if (previousEnabled != config->ServerEnabled) {
-					Utils::SysTrayNotify(startMessage, QSystemTrayIcon::MessageIcon::Information);
-				} else {
-					Utils::SysTrayNotify(restartMessage, QSystemTrayIcon::MessageIcon::Information);
-				}
-			} else {
-				Utils::SysTrayNotify(stopMessage, QSystemTrayIcon::MessageIcon::Information);
-			}
+			} 
 		}
 	}
 	else if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
@@ -324,29 +298,14 @@ void Config::FirstRunPasswordSetup()
 	// check if the password is already set
 	auto config = GetConfig();
 	if (!config) {
+		blog(LOG_INFO, "WSServer::Config: failed to get Config file!");
+
 		return;
 	}
 
 	if (!(config->Secret.isEmpty()) && !(config->Salt.isEmpty())) {
+		blog(LOG_INFO, "WSServer::Config:Auth code is not empty so will not be re-initiated!!");
+
 		return;
-	}
-
-	obs_frontend_push_ui_translation(obs_module_get_string);
-	QString dialogTitle = QObject::tr("OBSWebsocket.InitialPasswordSetup.Title");
-	QString dialogText = QObject::tr("OBSWebsocket.InitialPasswordSetup.Text");
-	QString dismissedText = QObject::tr("OBSWebsocket.InitialPasswordSetup.DismissedText");
-	obs_frontend_pop_ui_translation();
-
-	auto mainWindow = reinterpret_cast<QMainWindow*>(
-		obs_frontend_get_main_window()
-	);
-	
-	QMessageBox::StandardButton response = QMessageBox::question(mainWindow, dialogTitle, dialogText);
-	if (response == QMessageBox::Yes) {
-		ShowPasswordSetting();
-	}
-	else {
-		// tell the user they still can set the password later in our settings dialog
-		QMessageBox::information(mainWindow, dialogTitle, dismissedText);
 	}
 }

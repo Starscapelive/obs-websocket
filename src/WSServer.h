@@ -25,6 +25,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QtCore/QSharedPointer>
 #include <QtCore/QVariantHash>
 #include <QtCore/QThreadPool>
+#include <QLabel>
 
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
@@ -71,4 +72,8 @@ private:
 	std::map<connection_hdl, ConnectionProperties, std::owner_less<connection_hdl>> _connectionProperties;
 	QMutex _clMutex;
 	QThreadPool _threadPool;
+	QPixmap connectActivePixmap;
+	QPixmap connectInactivePixmap;
+	QLabel* connectIcon;
+	QLabel* connectLabel;
 };

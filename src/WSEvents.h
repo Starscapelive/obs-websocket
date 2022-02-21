@@ -48,11 +48,11 @@ public:
 
 	uint64_t getStreamingTime();
 	uint64_t getRecordingTime();
-	uint64_t getVirtualCamTime();
+	//uint64_t getVirtualCamTime();
 
 	QString getStreamingTimecode();
 	QString getRecordingTimecode();
-	QString getVirtualCamTimecode();
+	//QString getVirtualCamTimecode();
 	
 	obs_data_t* GetStats();
 
@@ -104,8 +104,8 @@ private:
 	void OnRecordingPaused();
 	void OnRecordingResumed();
 	
-	void OnVirtualCamStarted();
-	void OnVirtualCamStopped();
+	//void OnVirtualCamStarted();
+	//void OnVirtualCamStopped();
 
 	void OnReplayStarting();
 	void OnReplayStarted();

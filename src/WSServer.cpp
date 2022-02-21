@@ -24,6 +24,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QtWidgets/QMainWindow>
 #include <QtWidgets/QMessageBox>
 #include <QtConcurrent/QtConcurrent>
+#include <QStatusBar>
+#include <QLabel>
 #include <obs-frontend-api.h>
 #include <util/platform.h>
 
@@ -39,9 +41,19 @@ using websocketpp::lib::placeholders::_1;
 using websocketpp::lib::placeholders::_2;
 using websocketpp::lib::bind;
 
+#define SECTION_NAME "StarscapeSocketConf"
+
+#define GLOBAL_STARSCAPE_PORT_PROMPTED "starscape_port"
+
 WSServer::WSServer()
 	: QObject(nullptr),
 	  _connections(),
+	connectIcon(new QLabel),
+	connectLabel(new QLabel),
+	connectActivePixmap(QIcon(":/res/images/recording-active.svg")
+		.pixmap(QSize(20, 20))),
+	connectInactivePixmap(QIcon(":/res/images/recording-inactive.svg")
+		.pixmap(QSize(20, 20))),
 	  _clMutex(QMutex::Recursive)
 {
 		_server.get_alog().clear_channels(websocketpp::log::alevel::frame_header | websocketpp::log::alevel::frame_payload | websocketpp::log::alevel::control);
@@ -50,9 +62,25 @@ WSServer::WSServer()
 	_server.set_reuse_addr(true);
 #endif
 
+	connectIcon->setAlignment(Qt::AlignRight);
+	connectIcon->setAlignment(Qt::AlignVCenter);
+	connectLabel->setAlignment(Qt::AlignRight);
+	connectLabel->setAlignment(Qt::AlignVCenter);
+	connectIcon->setIndent(20);
+	connectIcon->setPixmap(connectInactivePixmap);
+	connectLabel->setText("DISCONNECTED");
+
 	_server.set_open_handler(bind(&WSServer::onOpen, this, ::_1));
 	_server.set_close_handler(bind(&WSServer::onClose, this, ::_1));
 	_server.set_message_handler(bind(&WSServer::onMessage, this, ::_1, ::_2));
+
+	QMainWindow* mainWindow = reinterpret_cast<QMainWindow*>(obs_frontend_get_main_window());
+	mainWindow->statusBar()->addPermanentWidget(connectIcon);
+	mainWindow->statusBar()->addPermanentWidget(connectLabel);
+
+	config_t* globalConfig = obs_frontend_get_global_config();
+	config_set_uint(globalConfig, SECTION_NAME, GLOBAL_STARSCAPE_PORT_PROMPTED, 0);
+	config_save(globalConfig);
 }
 
 WSServer::~WSServer()
@@ -100,20 +128,26 @@ void WSServer::start(quint16 port, bool lockToIPv4)
 		_server.listen(_serverPort, errorCode);
 	}
 
-	if (errorCode) {
+	while (errorCode && _serverPort < 65535) {
+		connectIcon->setPixmap(connectInactivePixmap);
+		connectLabel->setText("DISCONNECTED");
+		if (_server.is_listening()) {
+			stop();
+		}
+
+		_server.reset();
+		_server.listen(++_serverPort, errorCode);
+	}
+
+	if (errorCode && _serverPort > 65536) {
 		std::string errorCodeMessage = errorCode.message();
-		blog(LOG_INFO, "server: listen failed: %s", errorCodeMessage.c_str());
-
-		obs_frontend_push_ui_translation(obs_module_get_string);
-		QString errorTitle = tr("OBSWebsocket.Server.StartFailed.Title");
-		QString errorMessage = tr("OBSWebsocket.Server.StartFailed.Message").arg(_serverPort).arg(errorCodeMessage.c_str());
-		obs_frontend_pop_ui_translation();
-
-		QMainWindow* mainWindow = reinterpret_cast<QMainWindow*>(obs_frontend_get_main_window());
-		QMessageBox::warning(mainWindow, errorTitle, errorMessage);
-
+		blog(LOG_INFO, "WSServer::server: listen failed: %s", errorCodeMessage.c_str());
 		return;
 	}
+
+	config_t* globalConfig = obs_frontend_get_global_config();
+	config_set_uint(globalConfig, SECTION_NAME, GLOBAL_STARSCAPE_PORT_PROMPTED, _serverPort);
+	config_save(globalConfig);
 
 	_server.start_accept();
 
@@ -134,15 +168,23 @@ void WSServer::stop()
 		_server.pause_reading(hdl, errorCode);
 		if (errorCode) {
 			blog(LOG_ERROR, "Error: %s", errorCode.message().c_str());
+			connectIcon->setPixmap(connectInactivePixmap);
+			connectLabel->setText("DISCONNECTED");
 			continue;
 		}
 
 		_server.close(hdl, websocketpp::close::status::going_away, "Server stopping", errorCode);
 		if (errorCode) {
 			blog(LOG_ERROR, "Error: %s", errorCode.message().c_str());
+			connectIcon->setPixmap(connectInactivePixmap);
+			connectLabel->setText("DISCONNECTED");
 			continue;
 		}
 	}
+
+	config_t* globalConfig = obs_frontend_get_global_config();
+	config_set_uint(globalConfig, SECTION_NAME, GLOBAL_STARSCAPE_PORT_PROMPTED, 0);
+	config_save(globalConfig);
 
 	_threadPool.waitForDone();
 
@@ -196,8 +238,10 @@ void WSServer::onOpen(connection_hdl hdl)
 	locker.unlock();
 
 	QString clientIp = getRemoteEndpoint(hdl);
-	notifyConnection(clientIp);
+	// notifyConnection(clientIp);
 	blog(LOG_INFO, "new client connection from %s", clientIp.toUtf8().constData());
+	connectIcon->setPixmap(connectActivePixmap);
+	connectLabel->setText("CONNECTED");
 }
 
 void WSServer::onMessage(connection_hdl hdl, server::message_ptr message)
@@ -218,7 +262,7 @@ void WSServer::onMessage(connection_hdl hdl, server::message_ptr message)
 		if (config && config->DebugEnabled) {
 			blog(LOG_INFO, "Request >> '%s'", payload.c_str());
 		}
-
+		
 		WSRequestHandler requestHandler(connProperties);
 		std::string response = OBSRemoteProtocol::processMessage(requestHandler, payload);
 
@@ -250,9 +294,12 @@ void WSServer::onClose(connection_hdl hdl)
 	QString clientIp = getRemoteEndpoint(hdl);
 
 	blog(LOG_INFO, "Websocket connection with client '%s' closed (disconnected). Code is %d, reason is: '%s'", clientIp.toUtf8().constData(), localCloseCode, localCloseReason.c_str());
-	if (localCloseCode != websocketpp::close::status::going_away && _server.is_listening()) {
-		notifyDisconnection(clientIp);
-	}
+	//if (localCloseCode != websocketpp::close::status::going_away && _server.is_listening()) {
+	//	notifyDisconnection(clientIp);
+	//}
+
+	connectIcon->setPixmap(connectInactivePixmap);
+	connectLabel->setText("DISCONNECTED");
 }
 
 QString WSServer::getRemoteEndpoint(connection_hdl hdl)

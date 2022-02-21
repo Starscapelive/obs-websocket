@@ -182,10 +182,10 @@ class WSRequestHandler {
 		RpcResponse SendCaptions(const RpcRequest&);
 		
 		// Category: Virtual Cam
-		RpcResponse GetVirtualCamStatus(const RpcRequest&);
-		RpcResponse StartStopVirtualCam(const RpcRequest&);
-		RpcResponse StartVirtualCam(const RpcRequest&);
-		RpcResponse StopVirtualCam(const RpcRequest&);
+		//RpcResponse GetVirtualCamStatus(const RpcRequest&);
+		//RpcResponse StartStopVirtualCam(const RpcRequest&);
+		//RpcResponse StartVirtualCam(const RpcRequest&);
+		//RpcResponse StopVirtualCam(const RpcRequest&);
 
 		// Category: Studio Mode
 		RpcResponse GetStudioModeStatus(const RpcRequest&);
