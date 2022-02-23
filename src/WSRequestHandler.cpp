@@ -165,10 +165,10 @@ const QHash<QString, RpcMethodHandler> WSRequestHandler::messageMap{
 	{ "SendCaptions", &WSRequestHandler::SendCaptions },
 	
 	// Category: VirtualCam
-	{ "GetVirtualCamStatus", &WSRequestHandler::GetVirtualCamStatus },
-	{ "StartStopVirtualCam", &WSRequestHandler::StartStopVirtualCam },
-	{ "StartVirtualCam", &WSRequestHandler::StartVirtualCam },
-	{ "StopVirtualCam", &WSRequestHandler::StopVirtualCam },
+	//{ "GetVirtualCamStatus", &WSRequestHandler::GetVirtualCamStatus },
+	//{ "StartStopVirtualCam", &WSRequestHandler::StartStopVirtualCam },
+	//{ "StartVirtualCam", &WSRequestHandler::StartVirtualCam },
+	//{ "StopVirtualCam", &WSRequestHandler::StopVirtualCam },
 
 	// Category: Studio Mode
 	{ "GetStudioModeStatus", &WSRequestHandler::GetStudioModeStatus },

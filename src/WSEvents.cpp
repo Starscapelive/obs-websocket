@@ -202,13 +202,13 @@ void WSEvents::FrontendEventHandler(enum obs_frontend_event event, void* private
 			owner->OnRecordingResumed();
 			break;
 
-		case OBS_FRONTEND_EVENT_VIRTUALCAM_STARTED:
-			owner->OnVirtualCamStarted();
-			break;
+		//case OBS_FRONTEND_EVENT_VIRTUALCAM_STARTED:
+		//	owner->OnVirtualCamStarted();
+		//	break;
 
-		case OBS_FRONTEND_EVENT_VIRTUALCAM_STOPPED:
-			owner->OnVirtualCamStopped();
-			break;
+		//case OBS_FRONTEND_EVENT_VIRTUALCAM_STOPPED:
+		//	owner->OnVirtualCamStopped();
+		//	break;
 
 		case OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTING:
 			owner->OnReplayStarting();
@@ -433,10 +433,10 @@ uint64_t WSEvents::getRecordingTime() {
 	return getOutputRunningTime(recordingOutput);
 }
 
-uint64_t WSEvents::getVirtualCamTime() {
-	OBSOutputAutoRelease virtualCamOutput = obs_frontend_get_virtualcam_output();
-	return getOutputRunningTime(virtualCamOutput);
-}
+//uint64_t WSEvents::getVirtualCamTime() {
+//	OBSOutputAutoRelease virtualCamOutput = obs_frontend_get_virtualcam_output();
+//	return getOutputRunningTime(virtualCamOutput);
+//}
 
 QString WSEvents::getStreamingTimecode() {
 	return Utils::nsToTimestamp(getStreamingTime());
@@ -446,9 +446,9 @@ QString WSEvents::getRecordingTimecode() {
 	return Utils::nsToTimestamp(getRecordingTime());
 }
 
-QString WSEvents::getVirtualCamTimecode() {
-	return Utils::nsToTimestamp(getVirtualCamTime());
-}
+//QString WSEvents::getVirtualCamTimecode() {
+//	return Utils::nsToTimestamp(getVirtualCamTime());
+//}
 
 OBSDataAutoRelease getMediaSourceData(calldata_t* data) {
 	OBSDataAutoRelease fields = obs_data_create();
@@ -792,9 +792,9 @@ void WSEvents::OnRecordingResumed() {
  * @category virtual cam
  * @since 4.9.1
  */
-void WSEvents::OnVirtualCamStarted() {
-	broadcastUpdate("VirtualCamStarted");
-}
+//void WSEvents::OnVirtualCamStarted() {
+//	broadcastUpdate("VirtualCamStarted");
+//}
 
 /**
  * Virtual cam stopped successfully.
@@ -804,9 +804,9 @@ void WSEvents::OnVirtualCamStarted() {
  * @category virtual cam
  * @since 4.9.1
  */
-void WSEvents::OnVirtualCamStopped() {
-	broadcastUpdate("VirtualCamStopped");
-}
+//void WSEvents::OnVirtualCamStopped() {
+//	broadcastUpdate("VirtualCamStopped");
+//}
 
 /**
 * A request to start the replay buffer has been issued.

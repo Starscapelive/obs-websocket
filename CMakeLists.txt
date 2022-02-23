@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(obs-websocket VERSION 4.9.1)
+project(starscape-websocket VERSION 0.3.3)
 
 set(CMAKE_PREFIX_PATH "${QTDIR}")
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -22,7 +22,7 @@ endif()
 find_package(LibObs REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Core Widgets)
 
-set(obs-websocket_SOURCES
+set(starscape-websocket_SOURCES
 	src/obs-websocket.cpp
 	src/WSServer.cpp
 	src/ConnectionProperties.cpp
@@ -47,10 +47,9 @@ set(obs-websocket_SOURCES
 	src/rpc/RpcRequest.cpp
 	src/rpc/RpcResponse.cpp
 	src/rpc/RpcEvent.cpp
-	src/protocol/OBSRemoteProtocol.cpp
-	src/forms/settings-dialog.cpp)
+	src/protocol/OBSRemoteProtocol.cpp)
 
-set(obs-websocket_HEADERS
+set(starscape-websocket_HEADERS
 	src/obs-websocket.h
 	src/WSServer.h
 	src/ConnectionProperties.h
@@ -60,14 +59,12 @@ set(obs-websocket_HEADERS
 	src/Utils.h
 	src/rpc/RpcRequest.h
 	src/rpc/RpcResponse.h
-	src/rpc/RpcEvent.h
-	src/protocol/OBSRemoteProtocol.h
-	src/forms/settings-dialog.h)
+	src/rpc/RpcEvent.h)
 
 # --- Platform-independent build settings ---
-add_library(obs-websocket MODULE
-	${obs-websocket_SOURCES}
-	${obs-websocket_HEADERS})
+add_library(starscape-websocket MODULE
+	${starscape-websocket_SOURCES}
+	${starscape-websocket_HEADERS})
 
 include_directories(
 	"${LIBOBS_INCLUDE_DIR}/../UI/obs-frontend-api"
@@ -76,7 +73,7 @@ include_directories(
 	"${CMAKE_CURRENT_SOURCE_DIR}/deps/asio/asio/include"
 	"${CMAKE_CURRENT_SOURCE_DIR}/deps/websocketpp")
 
-target_link_libraries(obs-websocket
+target_link_libraries(starscape-websocket
 	libobs
 	Qt5::Core
 	Qt5::Widgets)
@@ -109,14 +106,14 @@ if(WIN32)
 		"${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/UI"
 	)
 
-	target_link_libraries(obs-websocket
-		"${OBS_FRONTEND_LIB}")
+	target_link_libraries(starscape-websocket
+		${OBS_FRONTEND_LIB}/Release/obs-frontend-api.lib)
 
 	# --- Release package helper ---
 	# The "release" folder has a structure similar OBS' one on Windows
 	set(RELEASE_DIR "${PROJECT_SOURCE_DIR}/release")
 
-	add_custom_command(TARGET obs-websocket POST_BUILD
+	add_custom_command(TARGET starscape-websocket POST_BUILD
 		# If config is Release or RelWithDebInfo, package release files
 		COMMAND if $<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>==1 (
 			"${CMAKE_COMMAND}" -E make_directory
@@ -126,12 +123,12 @@ if(WIN32)
 		COMMAND if $<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>==1 (
 			"${CMAKE_COMMAND}" -E copy_directory
 			"${PROJECT_SOURCE_DIR}/data"
-			"${RELEASE_DIR}/data/obs-plugins/obs-websocket"
+			"${RELEASE_DIR}/data/obs-plugins/starscape-websocket"
 		)
 
 		COMMAND if $<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>==1 (
 			"${CMAKE_COMMAND}" -E copy
-			"$<TARGET_FILE:obs-websocket>"
+			"$<TARGET_FILE:starscape-websocket>"
 			"${RELEASE_DIR}/obs-plugins/${ARCH_NAME}"
 		)
 
@@ -154,32 +151,32 @@ if(WIN32)
 		# If config is RelWithDebInfo, package PDB file for target
 		COMMAND if $<CONFIG:RelWithDebInfo>==1 (
 			"${CMAKE_COMMAND}" -E copy
-			"$<TARGET_PDB_FILE:obs-websocket>"
+			"$<TARGET_PDB_FILE:starscape-websocket>"
 			"${RELEASE_DIR}/obs-plugins/${ARCH_NAME}"
 		)
 
 		# In the Debug configuration, copy to obs-studio dev environment for immediate testing
 		COMMAND if $<CONFIG:Debug>==1 (
 			"${CMAKE_COMMAND}" -E copy
-				"$<TARGET_FILE:obs-websocket>"
-				"${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/rundir/$<CONFIG>/obs-plugins/${ARCH_NAME}"
+				"$<TARGET_FILE:starscape-websocket>"
+				"${LIBOBS_LIB}/../rundir/$<CONFIG>/obs-plugins/${ARCH_NAME}"
 		)
 
 		COMMAND if $<CONFIG:Debug>==1 (
 			"${CMAKE_COMMAND}" -E copy
-			"$<TARGET_PDB_FILE:obs-websocket>"
-			"${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/rundir/$<CONFIG>/obs-plugins/${ARCH_NAME}"
+			"$<TARGET_PDB_FILE:starscape-websocket>"
+			"${LIBOBS_LIB}/../rundir/$<CONFIG>/obs-plugins/${ARCH_NAME}"
 		)
 
 		COMMAND if $<CONFIG:Debug>==1 (
 			"${CMAKE_COMMAND}" -E make_directory
-			"${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/rundir/$<CONFIG>/data/obs-plugins/obs-websocket"
+			"${LIBOBS_LIB}/../rundir/$<CONFIG>/data/obs-plugins/starscape-websocket"
 		)
 
 		COMMAND if $<CONFIG:Debug>==1 (
 			"${CMAKE_COMMAND}" -E copy_directory
 			"${PROJECT_SOURCE_DIR}/data"
-			"${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/rundir/$<CONFIG>/data/obs-plugins/obs-websocket"
+			"${LIBOBS_LIB}/../rundir/$<CONFIG>/data/obs-plugins/starscape-websocket"
 		)
 	)
 	# --- End of sub-section ---
@@ -191,8 +188,8 @@ endif()
 if(UNIX AND NOT APPLE)
 	include(GNUInstallDirs)
 
-	set_target_properties(obs-websocket PROPERTIES PREFIX "")
-	target_link_libraries(obs-websocket obs-frontend-api)
+	set_target_properties(starscape-websocket PROPERTIES PREFIX "")
+	target_link_libraries(starscape-websocket obs-frontend-api)
 
 	file(GLOB locale_files data/locale/*.ini)
 
@@ -203,16 +200,16 @@ if(UNIX AND NOT APPLE)
 	)
 
 	if(${USE_UBUNTU_FIX})
-		install(TARGETS obs-websocket LIBRARY
+		install(TARGETS starscape-websocket LIBRARY
 			DESTINATION "/usr/lib/obs-plugins"
 			PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 	endif()
-	install(TARGETS obs-websocket LIBRARY
+	install(TARGETS starscape-websocket LIBRARY
 		DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}/obs-plugins"
 		PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 
 	install(FILES ${locale_files}
-		DESTINATION "${CMAKE_INSTALL_FULL_DATAROOTDIR}/obs/obs-plugins/obs-websocket/locale")
+		DESTINATION "${CMAKE_INSTALL_FULL_DATAROOTDIR}/obs/obs-plugins/starscape-websocket/locale")
 endif()
 # --- End of section ---
 
@@ -221,7 +218,7 @@ if(APPLE)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -fvisibility=default")
 
 	set(CMAKE_SKIP_RPATH TRUE)
-	set_target_properties(obs-websocket PROPERTIES PREFIX "")
-	target_link_libraries(obs-websocket "${OBS_FRONTEND_LIB}")
+	set_target_properties(starscape-websocket PROPERTIES PREFIX "")
+	target_link_libraries(starscape-websocket "${OBS_FRONTEND_LIB}")
 endif()
 # -- End of section --
